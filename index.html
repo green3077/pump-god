@@ -50,16 +50,6 @@
       <div id="steps"></div>
     </section>
 
-    <section class="panel">
-      <div class="panel-title"><span class="num">03</span> 성능 곡선</div>
-      <div id="chart"></div>
-      <div class="legend">
-        <span><i class="lg theory"></i>기준 곡선</span>
-        <span><i class="lg actual"></i>측정 곡선</span>
-        <span><i class="lg limit"></i>한계값</span>
-      </div>
-    </section>
-
     <div class="result" id="verdict"></div>
 
     <p class="disclaimer">입력값으로 계산한 참고용 결과입니다. 법정 점검 판단은 교정된 계측기의 측정값과 현행 화재안전기준(NFTC 103)을 따르세요.</p>
@@ -134,7 +124,13 @@
   <!-- ===== 기록 탭 ===== -->
   <main id="tab-records" class="tab" hidden>
     <section class="panel">
-      <div class="panel-title">저장된 시험 기록</div>
+      <div class="rec-head">
+        <div class="panel-title">저장된 시험 기록</div>
+        <div class="seg" id="recSort" role="group" aria-label="정렬">
+          <button type="button" data-sort="recent" class="on">최신순</button>
+          <button type="button" data-sort="name">가나다순</button>
+        </div>
+      </div>
       <div id="records"></div>
     </section>
   </main>

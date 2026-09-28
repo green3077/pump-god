@@ -11,6 +11,7 @@ const BAR_MAX = 160;              // 막대 게이지 최대 눈금(%)
 
 const DRAFT_KEY = 'pumpgod.draft';
 const RECORDS_KEY = 'pumpgod.records';
+const SORT_KEY = 'pumpgod.recordSort';
 const VIDEO_URL = 'https://www.youtube.com/results?search_query=' + encodeURIComponent('소화펌프 성능시험 방법');
 
 const FIELDS = ['site', 'head', 'flow', 'churn', 'q100', 'p100', 'q150', 'p150'];
@@ -35,6 +36,12 @@ function storageSet(key, value) {
 function today() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function localStamp(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 function toast(msg) {
   const t = $('toast');
@@ -125,7 +132,6 @@ function render() {
     } else note.innerHTML = '';
   }
 
-  $('chart').innerHTML = chartSvg(r);
 
   const vd = $('verdict');
   if (r.overall) {
@@ -263,14 +269,26 @@ function saveRecord(silent) {
   return true;
 }
 
+function sortRecords(records, mode) {
+  const byRecent = (a, b) => (b.savedAt || '').localeCompare(a.savedAt || '');
+  if (mode !== 'name') return records.sort(byRecent);
+  return records.sort((a, b) => {
+    const sa = (a.values.site || '').trim(), sb = (b.values.site || '').trim();
+    if (!sa !== !sb) return sa ? -1 : 1;           // 현장명 없는 기록은 맨 뒤
+    return sa.localeCompare(sb, 'ko') || byRecent(a, b);
+  });
+}
+
 function renderRecords() {
-  const records = storageGet(RECORDS_KEY, []);
+  const mode = storageGet(SORT_KEY, 'recent');
+  for (const b of $('recSort').children) b.classList.toggle('on', b.dataset.sort === mode);
+  const records = sortRecords(storageGet(RECORDS_KEY, []), mode);
   $('records').innerHTML = records.length ? records.map(rec => {
     const v = rec.values;
     const [cls, label] = rec.overall === 'ok' ? ['ok', '합격'] : rec.overall === 'bad' ? ['bad', '불합격'] : ['', '미판정'];
     return `<div class="rec" data-id="${esc(rec.id)}">
       <div class="rec-main"><b>${esc(v.site || '현장명 없음')}</b>
-        <span>${esc(rec.savedAt.slice(0, 10))} · 양정 ${esc(v.head)} m · ${esc(v.flow)} LPM</span></div>
+        <span>${esc(localStamp(rec.savedAt))} · 양정 ${esc(v.head)} m · ${esc(v.flow)} LPM</span></div>
       <span class="pill ${cls}">${label}</span>
       <button type="button" class="rec-del" aria-label="삭제">✕</button>
     </div>`;
@@ -402,6 +420,12 @@ function init() {
   });
   for (const b of document.querySelectorAll('.tabbar button')) b.onclick = () => showTab(b.dataset.tab);
   $('records').addEventListener('click', onRecordsClick);
+  $('recSort').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    storageSet(SORT_KEY, b.dataset.sort);
+    renderRecords();
+  });
 
   $('btnNew').onclick = () => {
     if (!confirm('입력값을 모두 비우고 새 시험을 시작할까요?\n(저장된 기록은 그대로 남습니다)')) return;
