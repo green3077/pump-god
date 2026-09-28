@@ -155,6 +155,17 @@
     <button type="button" data-tab="records"><span>🗂️</span>기록</button>
   </nav>
 
+  <div id="shareSheet" class="sheet" hidden>
+    <div class="sheet-box">
+      <div class="sheet-title">📄 보고서가 만들어졌습니다</div>
+      <div class="sheet-file" id="shareName"></div>
+      <button type="button" id="btnShare" class="btn solid">공유하기 (카카오톡·메일·드라이브 등)</button>
+      <p class="sheet-note" id="shareNote" hidden>이 브라우저는 파일 공유를 지원하지 않아 저장만 할 수 있습니다.</p>
+      <button type="button" id="btnDownload" class="btn ghost">기기에 저장</button>
+      <button type="button" id="btnSheetClose" class="sheet-close">닫기</button>
+    </div>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
   <div id="reportHost" aria-hidden="true"></div>
 

@@ -165,15 +165,12 @@ button, input { font: inherit; color: inherit; }
 .report { width: 794px; padding: 40px 46px; background: #fff; color: #111; font-size: 14px; line-height: 1.5; }
 .report .rhead { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0f2a3d; padding-bottom: 10px; margin-bottom: 18px; }
 .report h1 { font-size: 24px; margin: 0; }
-.report .rmeta { text-align: right; font-size: 13px; color: #555; }
 .report table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
 .report th, .report td { border: 1px solid #a9b3bb; padding: 7px 9px; text-align: center; }
 .report th { background: #e8eef2; }
 .report h2 { font-size: 15px; margin: 14px 0 8px; color: #0f2a3d; }
 .report .ok { color: #0e7a56; font-weight: 800; }
 .report .bad { color: #c0392b; font-weight: 800; }
-.report img { width: 100%; border: 1px solid #ddd; }
-.report .foot { color: #777; font-size: 12px; margin-top: 12px; }
 .rec-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .rec-head .panel-title { margin-bottom: 0; }
 .seg { display: inline-flex; background: #edf0f2; border-radius: 8px; padding: 3px; flex: none; }
@@ -183,3 +180,13 @@ button, input { font: inherit; color: inherit; }
 .tabbar button { font-size: 12px; }
 .seg-wide { display: flex; width: 100%; margin-bottom: 12px; background: #dde3e8; }
 .seg-wide button { flex: 1; padding: 10px; font-size: 15px; }
+.report .rmeta { font-size: 16px; font-weight: 600; color: #444; }
+
+/* PDF 공유 시트 */
+.sheet { position: fixed; inset: 0; z-index: 70; background: rgba(10, 20, 30, .5); display: flex; align-items: flex-end; justify-content: center; }
+.sheet[hidden] { display: none; }
+.sheet-box { width: 100%; max-width: 640px; background: #fff; border-radius: 16px 16px 0 0; padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); display: grid; gap: 10px; }
+.sheet-title { font-size: 18px; font-weight: 800; }
+.sheet-file { font-size: 13px; color: var(--muted); word-break: break-all; margin-bottom: 4px; }
+.sheet-note { margin: 0; font-size: 13px; color: var(--muted); }
+.sheet-close { background: none; border: 0; padding: 8px; color: var(--muted); font-weight: 700; cursor: pointer; }

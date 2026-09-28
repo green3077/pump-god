@@ -152,69 +152,6 @@ function render() {
   return r;
 }
 
-function niceStep(max, ticks) {
-  const raw = max / ticks;
-  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
-  const n = raw / pow;
-  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * pow;
-}
-
-function chartSvg(r, opts = {}) {
-  const W = 600, H = 380, L = 58, R = 18, T = 18, B = 52;
-  const { P, Q, m } = r;
-
-  const theory = P != null && Q != null ? [[0, P * CHURN_MAX], [Q, P], [Q * OVER_FLOW, P * OVER_MIN]] : [];
-  const actual = [];
-  if (m.churn != null) actual.push([0, m.churn]);
-  if (m.q100 != null && m.p100 != null) actual.push([m.q100, m.p100]);
-  if (m.q150 != null && m.p150 != null) actual.push([m.q150, m.p150]);
-
-  const pts = [...theory, ...actual];
-  const xMaxRaw = Math.max(Q ? Q * 1.75 : 0, ...pts.map(p => p[0]), 800);
-  const yMaxRaw = Math.max(...pts.map(p => p[1]), 0.2) * 1.12;
-  const xStep = niceStep(xMaxRaw, 6), yStep = niceStep(yMaxRaw, 5);
-  const xMax = Math.ceil(xMaxRaw / xStep) * xStep, yMax = Math.ceil(yMaxRaw / yStep) * yStep;
-  const px = x => L + (x / xMax) * (W - L - R);
-  const py = y => H - B - (y / yMax) * (H - T - B);
-  const yDec = Math.abs(yStep * 10 - Math.round(yStep * 10)) > 1e-9 ? 2 : 1;
-
-  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="Malgun Gothic, Noto Sans KR, sans-serif">`;
-  s += `<rect width="${W}" height="${H}" fill="#fff"/>`;
-  for (let y = 0; y <= yMax + 1e-9; y += yStep) {
-    s += `<line x1="${L}" y1="${py(y)}" x2="${W - R}" y2="${py(y)}" stroke="#e7ebee"/>`;
-    s += `<text x="${L - 8}" y="${py(y) + 4}" font-size="12" text-anchor="end" fill="#6b7a86">${y.toFixed(yDec)}</text>`;
-  }
-  for (let x = 0; x <= xMax + 1e-9; x += xStep) {
-    s += `<line x1="${px(x)}" y1="${H - B}" x2="${px(x)}" y2="${H - B + 5}" stroke="#9aa7b1"/>`;
-    s += `<text x="${px(x)}" y="${H - B + 19}" font-size="12" text-anchor="middle" fill="#6b7a86">${Math.round(x)}</text>`;
-  }
-  s += `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="#9aa7b1" stroke-width="1.5"/>`;
-  s += `<line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" stroke="#9aa7b1" stroke-width="1.5"/>`;
-  s += `<text x="${W - R}" y="${H - 8}" font-size="13" font-weight="700" text-anchor="end" fill="#0f2a3d">유량 Q (LPM)</text>`;
-  s += `<text x="${L + 6}" y="${T + 12}" font-size="13" font-weight="700" fill="#0f2a3d">압력 P (MPa)</text>`;
-
-  const path = a => a.map((p, i) => `${i ? 'L' : 'M'}${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(' ');
-  if (theory.length) {
-    s += `<path d="${path(theory)}" fill="none" stroke="#8796a3" stroke-width="2" stroke-dasharray="7 5"/>`;
-    const tags = ['140%', '100%', '65%'];
-    theory.forEach((p, i) => {
-      const x = px(p[0]), y = py(p[1]);
-      s += `<rect x="${x - 6}" y="${y - 6}" width="12" height="12" fill="#f0a020" transform="rotate(45 ${x} ${y})"/>`;
-      s += `<text x="${x + (i === 0 ? 10 : 0)}" y="${y + 22}" font-size="12" font-weight="700" text-anchor="${i === 0 ? 'start' : 'middle'}" fill="#b27400">${tags[i]}</text>`;
-    });
-  }
-  if (actual.length) {
-    s += `<path d="${path(actual)}" fill="none" stroke="#0fa39a" stroke-width="3.5" stroke-linejoin="round"/>`;
-    actual.forEach(p => { s += `<circle cx="${px(p[0])}" cy="${py(p[1])}" r="6" fill="#fff" stroke="#0fa39a" stroke-width="3"/>`; });
-  }
-  if (opts.legend) {
-    const y = T + 30;
-    s += `<line x1="${W - 230}" y1="${y}" x2="${W - 205}" y2="${y}" stroke="#8796a3" stroke-width="2" stroke-dasharray="6 4"/><text x="${W - 199}" y="${y + 4}" font-size="12">기준 곡선</text>`;
-    s += `<line x1="${W - 130}" y1="${y}" x2="${W - 105}" y2="${y}" stroke="#0fa39a" stroke-width="3.5"/><text x="${W - 99}" y="${y + 4}" font-size="12">측정 곡선</text>`;
-  }
-  return s + '</svg>';
-}
-
 const STRUCTURE_SVG = `
 <svg class="struct-svg" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" font-family="Malgun Gothic, Noto Sans KR, sans-serif" font-size="13">
   <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#0fa39a"/></marker></defs>
@@ -384,23 +321,7 @@ function showTab(name) {
 }
 
 // ===== PDF =====
-function svgToPng(svgText, width, height) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }));
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = width * 2; c.height = height * 2;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-      ctx.drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      resolve(c.toDataURL('image/png'));
-    };
-    img.onerror = e => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-  });
-}
+let lastPdf = null;   // { file: File, url: string }
 
 async function makePdf() {
   const v = readValues();
@@ -413,7 +334,6 @@ async function makePdf() {
   btn.textContent = '만드는 중…';
   try {
     saveRecord(true);
-    const chartPng = await svgToPng(chartSvg(r, { legend: true }), 600, 380);
     const judge = s => s === 'ok' ? '<span class="ok">적합</span>' : s === 'bad' ? '<span class="bad">부적합</span>' : '-';
     const pct = st => st.pct != null ? st.pct.toFixed(1) + '%' : '-';
     const S = r.steps;
@@ -423,8 +343,7 @@ async function makePdf() {
     host.innerHTML = `
       <div class="report" id="reportDoc">
         <div class="rhead">
-          <h1>소화펌프 성능시험 결과서</h1>
-          <div class="rmeta">${esc(v.site) || '현장명 미기재'}<br>작성일 ${today()}</div>
+          <h1>소화펌프 성능시험 결과서 <span class="rmeta">(${esc(v.site) || '현장명 미기재'}, 작성일 ${today()})</span></h1>
         </div>
         <h2>■ 펌프 사양</h2>
         <table>
@@ -439,13 +358,10 @@ async function makePdf() {
           <tr><td>최대운전 (150%)</td><td>${fmt(r.m.q150, 1)}</td><td>${fmt(r.m.p150, 3)}</td><td>${(r.P * OVER_MIN).toFixed(3)} MPa 이상</td><td>${pct(S.over)}</td><td>${judge(S.over.state)}</td></tr>
           <tr><th colspan="5">종합 판정</th><td style="font-size:16px">${overall}</td></tr>
         </table>
-        <h2>■ 성능 곡선</h2>
-        <img src="${chartPng}" alt="">
-        <p class="foot">판정 기준: 체절운전 시 정격토출압력의 140% 이하, 정격토출량 150% 운전 시 정격토출압력의 65% 이상 (NFTC 103).<br>
-        정격토출압력은 정격양정 × ${M_TO_MPA} MPa/m로 환산. 입력값 기반 참고 자료이며 법정 판단은 현행 기준과 교정된 계측값을 따릅니다.<br>펌프의신으로 작성</p>
       </div>`;
 
     const canvas = await window.html2canvas($('reportDoc'), { scale: 2, backgroundColor: '#ffffff' });
+    host.innerHTML = '';
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
     const pw = 210, ph = 297;
@@ -453,9 +369,12 @@ async function makePdf() {
     const img = canvas.toDataURL('image/jpeg', 0.92);
     if (ih <= ph) pdf.addImage(img, 'JPEG', 0, 0, pw, ih);
     else pdf.addImage(img, 'JPEG', (pw - pw * ph / ih) / 2, 0, pw * ph / ih, ph);
-    pdf.save(`펌프성능시험_${(v.site || '현장').replace(/[\\/:*?"<>|\s]+/g, '_')}_${today()}.pdf`);
-    host.innerHTML = '';
-    toast('PDF 보고서를 저장했습니다');
+
+    const name = `펌프성능시험_${(v.site || '현장').replace(/[\\/:*?"<>|\s]+/g, '_')}_${today()}.pdf`;
+    if (lastPdf) URL.revokeObjectURL(lastPdf.url);
+    const file = new File([pdf.output('blob')], name, { type: 'application/pdf' });
+    lastPdf = { file, url: URL.createObjectURL(file) };
+    openShareSheet();
   } catch (e) {
     console.error(e);
     toast('PDF 생성 중 오류가 발생했습니다');
@@ -463,6 +382,41 @@ async function makePdf() {
     btn.disabled = false;
     btn.textContent = 'PDF 보고서';
   }
+}
+
+function canShareFile(file) {
+  try { return !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch { return false; }
+}
+
+function openShareSheet() {
+  $('shareName').textContent = lastPdf.file.name;
+  const ok = canShareFile(lastPdf.file);
+  $('btnShare').hidden = !ok;
+  $('shareNote').hidden = ok;
+  $('shareSheet').hidden = false;
+}
+function closeShareSheet() { $('shareSheet').hidden = true; }
+
+// 공유창은 사용자가 버튼을 누른 순간에만 열 수 있어서, PDF를 만든 뒤 별도 버튼으로 공유한다
+async function sharePdf() {
+  if (!lastPdf) return;
+  try {
+    await navigator.share({ files: [lastPdf.file], title: '소화펌프 성능시험 결과서' });
+    closeShareSheet();
+  } catch (e) {
+    if (e.name !== 'AbortError') { console.error(e); toast('공유하지 못했습니다. "기기에 저장"을 이용하세요'); }
+  }
+}
+
+function downloadPdf() {
+  if (!lastPdf) return;
+  const a = document.createElement('a');
+  a.href = lastPdf.url;
+  a.download = lastPdf.file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('PDF를 기기에 저장했습니다');
 }
 
 // ===== 초기화 =====
@@ -504,6 +458,10 @@ function init() {
   };
   $('btnSave').onclick = () => saveRecord(false);
   $('btnPdf').onclick = makePdf;
+  $('btnShare').onclick = sharePdf;
+  $('btnDownload').onclick = downloadPdf;
+  $('btnSheetClose').onclick = closeShareSheet;
+  $('shareSheet').onclick = e => { if (e.target === $('shareSheet')) closeShareSheet(); };
 }
 
 init();
