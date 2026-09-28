@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#3949ab">
+  <title>펌프의신</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>펌프의신 <small>펌프 성능 시험</small></h1>
+  </header>
+
+  <div class="sticky-bar">
+    <h2>기본정보</h2>
+    <div class="bar-actions">
+      <button type="button" id="btnNew" class="link-btn">⟳ 새로 입력하기</button>
+      <button type="button" id="btnList" class="link-btn primary">🕘 목록</button>
+    </div>
+  </div>
+
+  <main>
+    <button type="button" id="btnStructure" class="chip-btn">
+      <span class="chip-icon">⚙️</span> 펌프구조
+    </button>
+
+    <section class="card info-card">
+      <h3 class="info-title"><span class="i-badge">i</span> 용어 정의 및 성능 기준</h3>
+      <p>• <b>정격토출량</b>: 펌프의 정격부하운전 시 토출량으로서 정격토출압력에서의 펌프의 토출량을 말한다.<br>
+        • <b>정격토출압력</b>: 펌프의 정격부하운전 시 토출압력으로서 정격토출량에서의 펌프의 토출측 압력을 말한다.</p>
+      <p>펌프의 성능은 체절운전 시 정격토출압력의 <b>140%를 초과하지 않고</b>, 정격토출량의 150%로 운전 시 정격토출압력의 <b>65% 이상</b>이 되어야 하며, 성능시험배관을 설치할 것.</p>
+    </section>
+
+    <section class="card">
+      <label class="field-label" for="site">🏢 현장명</label>
+      <input id="site" class="inp" type="text" placeholder="현장(건물)명을 입력하세요">
+      <div class="row2">
+        <div>
+          <label class="field-label" for="testDate">📅 점검일자</label>
+          <input id="testDate" class="inp" type="date">
+        </div>
+        <div>
+          <label class="field-label" for="inspector">👷 점검자</label>
+          <input id="inspector" class="inp" type="text" placeholder="이름">
+        </div>
+      </div>
+      <label class="field-label" for="pumpName">🔧 펌프 구분</label>
+      <input id="pumpName" class="inp" type="text" placeholder="예: 옥내소화전 주펌프">
+    </section>
+
+    <section class="card">
+      <label class="field-label" for="head"><span class="ic gauge">◔</span> 정격양정 (m)</label>
+      <input id="head" class="inp" type="number" inputmode="decimal" placeholder="양정을 입력하세요">
+      <p class="hint" id="headHint">정격토출압력 = 양정 × 0.0098 MPa</p>
+    </section>
+
+    <section class="card">
+      <label class="field-label" for="flow"><span class="ic drop">💧</span> 정격토출량 (LPM)</label>
+      <input id="flow" class="inp" type="number" inputmode="decimal" placeholder="토출량을 입력하세요">
+    </section>
+
+    <button type="button" id="btnFlowmeter" class="big-btn blue">✔ 유량계 선정 기준 확인</button>
+
+    <h2 class="sec-title">시험 수치</h2>
+
+    <section class="note orange">
+      <div>
+        <h4>성능시험 방법 및 기준</h4>
+        <p>체절운전 140% 이하, 150% 운전 시 65% 이상 준수</p>
+      </div>
+      <a id="btnVideo" class="pill-btn" target="_blank" rel="noopener">영상보기</a>
+    </section>
+
+    <section class="note purple">
+      <h4>체절운전 정의</h4>
+      <p>펌프의 성능시험을 목적으로 펌프 토출측의 개폐밸브를 닫은 상태에서 펌프를 운전하는 것</p>
+    </section>
+
+    <div id="measureList"></div>
+
+    <h2 class="sec-title">결과 그래프</h2>
+    <section class="card chart-card">
+      <div id="chart"></div>
+    </section>
+    <div class="legend">
+      <span><i class="lg dash"></i>이론 성능선(기준)</span>
+      <span><i class="lg solid"></i>실제 측정선(결과)</span>
+    </div>
+
+    <section class="verdict" id="verdict"></section>
+
+    <section class="tip">
+      <span>⚠️</span>
+      <p>Tip: 본 그래프는 입력된 수치를 바탕으로 한 시각화 자료이며, 실제 소방시설 성능시험의 법적 근거가 될 수 없습니다. 반드시 공인된 계측기 및 관련 법령에 따른 기준을 우선하여 판단하시기 바랍니다.</p>
+    </section>
+
+    <button type="button" id="btnSave" class="big-btn outline">💾 목록에 저장</button>
+    <button type="button" id="btnPdf" class="big-btn indigo">⬇ PDF 성능시험 보고서 생성</button>
+  </main>
+
+  <!-- 모달 -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="modalTitle"></h3>
+        <button type="button" id="modalClose" class="x-btn" aria-label="닫기">✕</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="reportHost" aria-hidden="true"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

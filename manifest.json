@@ -1,0 +1,10 @@
+{
+  "name": "펌프의신",
+  "short_name": "펌프의신",
+  "description": "소화펌프 성능시험 계산 · 그래프 · PDF 보고서",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f5f7",
+  "theme_color": "#3949ab",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
