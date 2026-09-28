@@ -1,7 +1,7 @@
 'use strict';
 
 // ===== 상수 =====
-const M_TO_MPA = 0.0098;          // 양정(m) → 압력(MPa) 환산계수
+const M_TO_MPA = 0.01;            // 양정(m) → 압력(MPa) 환산계수 (현장 관용: 10 m ≈ 0.1 MPa)
 const CHURN_MAX = 1.40;           // 체절운전: 정격토출압력의 140% 이하
 const OVER_FLOW = 1.50;           // 과부하 운전: 정격토출량의 150%
 const OVER_MIN = 0.65;            // 150% 운전 시 정격토출압력의 65% 이상

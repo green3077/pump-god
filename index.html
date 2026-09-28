@@ -10,15 +10,18 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <img src="icon.svg" alt="" class="logo">
-      <div>
-        <div class="brand-name">펌프의신 <span class="ver" id="appVer"></span></div>
-        <div class="brand-sub" id="topSub">소화펌프 성능시험</div>
+  <header class="appbar">
+    <div class="verbar">배포 버전 <b id="appVer">-</b></div>
+    <div class="topbar">
+      <div class="brand">
+        <img src="icon.svg" alt="" class="logo">
+        <div>
+          <div class="brand-name">펌프의신</div>
+          <div class="brand-sub" id="topSub">소화펌프 성능시험</div>
+        </div>
       </div>
+      <button type="button" id="btnNew" class="top-btn" title="새 시험">＋ 새 시험</button>
     </div>
-    <button type="button" id="btnNew" class="top-btn" title="새 시험">＋ 새 시험</button>
   </header>
 
   <!-- ===== 시험 탭 ===== -->
@@ -113,7 +116,7 @@
         <dt>정격토출량</dt><dd>정격부하 운전 시, 정격토출압력에서 펌프가 내보내는 유량</dd>
         <dt>정격토출압력</dt><dd>정격부하 운전 시, 정격토출량에서 펌프 토출측에 걸리는 압력</dd>
         <dt>체절운전</dt><dd>성능시험을 위해 펌프 토출측 개폐밸브를 잠근 채 운전하는 것</dd>
-        <dt>압력 환산</dt><dd>정격토출압력(MPa) ≈ 정격양정(m) × 0.0098</dd>
+        <dt>압력 환산</dt><dd>정격토출압력(MPa) ≈ 정격양정(m) × 0.01 (10 m ≈ 0.1 MPa)</dd>
       </dl>
     </section>
     <section class="panel">
