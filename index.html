@@ -3,114 +3,145 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#3949ab">
+  <meta name="theme-color" content="#0f2a3d">
   <title>펌프의신</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header">
-    <h1>펌프의신 <small>펌프 성능 시험</small></h1>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icon.svg" alt="" class="logo">
+      <div>
+        <div class="brand-name">펌프의신</div>
+        <div class="brand-sub" id="topSub">소화펌프 성능시험</div>
+      </div>
+    </div>
+    <button type="button" id="btnNew" class="top-btn" title="새 시험">＋ 새 시험</button>
   </header>
 
-  <div class="sticky-bar">
-    <h2>기본정보</h2>
-    <div class="bar-actions">
-      <button type="button" id="btnNew" class="link-btn">⟳ 새로 입력하기</button>
-      <button type="button" id="btnList" class="link-btn primary">🕘 목록</button>
-    </div>
-  </div>
-
-  <main>
-    <button type="button" id="btnStructure" class="chip-btn">
-      <span class="chip-icon">⚙️</span> 펌프구조
-    </button>
-
-    <section class="card info-card">
-      <h3 class="info-title"><span class="i-badge">i</span> 용어 정의 및 성능 기준</h3>
-      <p>• <b>정격토출량</b>: 펌프의 정격부하운전 시 토출량으로서 정격토출압력에서의 펌프의 토출량을 말한다.<br>
-        • <b>정격토출압력</b>: 펌프의 정격부하운전 시 토출압력으로서 정격토출량에서의 펌프의 토출측 압력을 말한다.</p>
-      <p>펌프의 성능은 체절운전 시 정격토출압력의 <b>140%를 초과하지 않고</b>, 정격토출량의 150%로 운전 시 정격토출압력의 <b>65% 이상</b>이 되어야 하며, 성능시험배관을 설치할 것.</p>
-    </section>
-
-    <section class="card">
-      <label class="field-label" for="site">🏢 현장명</label>
-      <input id="site" class="inp" type="text" placeholder="현장(건물)명을 입력하세요">
-      <div class="row2">
-        <div>
-          <label class="field-label" for="testDate">📅 점검일자</label>
-          <input id="testDate" class="inp" type="date">
-        </div>
-        <div>
-          <label class="field-label" for="inspector">👷 점검자</label>
-          <input id="inspector" class="inp" type="text" placeholder="이름">
-        </div>
+  <!-- ===== 시험 탭 ===== -->
+  <main id="tab-test" class="tab">
+    <section class="panel">
+      <div class="panel-title"><span class="num">01</span> 펌프 사양</div>
+      <label class="fld">
+        <span>현장명</span>
+        <input id="site" type="text" placeholder="건물·현장 이름">
+      </label>
+      <div class="grid2">
+        <label class="fld">
+          <span>정격양정</span>
+          <div class="unit-inp"><input id="head" type="number" inputmode="decimal" step="any" placeholder="0"><em>m</em></div>
+        </label>
+        <label class="fld">
+          <span>정격토출량</span>
+          <div class="unit-inp"><input id="flow" type="number" inputmode="decimal" step="any" placeholder="0"><em>LPM</em></div>
+        </label>
       </div>
-      <label class="field-label" for="pumpName">🔧 펌프 구분</label>
-      <input id="pumpName" class="inp" type="text" placeholder="예: 옥내소화전 주펌프">
+      <div class="spec-strip" id="specStrip"></div>
     </section>
 
-    <section class="card">
-      <label class="field-label" for="head"><span class="ic gauge">◔</span> 정격양정 (m)</label>
-      <input id="head" class="inp" type="number" inputmode="decimal" placeholder="양정을 입력하세요">
-      <p class="hint" id="headHint">정격토출압력 = 양정 × 0.0098 MPa</p>
+    <section class="panel">
+      <div class="panel-title"><span class="num">02</span> 운전점별 측정</div>
+      <div id="steps"></div>
     </section>
 
-    <section class="card">
-      <label class="field-label" for="flow"><span class="ic drop">💧</span> 정격토출량 (LPM)</label>
-      <input id="flow" class="inp" type="number" inputmode="decimal" placeholder="토출량을 입력하세요">
-    </section>
-
-    <button type="button" id="btnFlowmeter" class="big-btn blue">✔ 유량계 선정 기준 확인</button>
-
-    <h2 class="sec-title">시험 수치</h2>
-
-    <section class="note orange">
-      <div>
-        <h4>성능시험 방법 및 기준</h4>
-        <p>체절운전 140% 이하, 150% 운전 시 65% 이상 준수</p>
-      </div>
-      <a id="btnVideo" class="pill-btn" target="_blank" rel="noopener">영상보기</a>
-    </section>
-
-    <section class="note purple">
-      <h4>체절운전 정의</h4>
-      <p>펌프의 성능시험을 목적으로 펌프 토출측의 개폐밸브를 닫은 상태에서 펌프를 운전하는 것</p>
-    </section>
-
-    <div id="measureList"></div>
-
-    <h2 class="sec-title">결과 그래프</h2>
-    <section class="card chart-card">
+    <section class="panel">
+      <div class="panel-title"><span class="num">03</span> 성능 곡선</div>
       <div id="chart"></div>
+      <div class="legend">
+        <span><i class="lg theory"></i>기준 곡선</span>
+        <span><i class="lg actual"></i>측정 곡선</span>
+        <span><i class="lg limit"></i>한계값</span>
+      </div>
     </section>
-    <div class="legend">
-      <span><i class="lg dash"></i>이론 성능선(기준)</span>
-      <span><i class="lg solid"></i>실제 측정선(결과)</span>
+
+    <div class="result" id="verdict"></div>
+
+    <p class="disclaimer">입력값으로 계산한 참고용 결과입니다. 법정 점검 판단은 교정된 계측기의 측정값과 현행 화재안전기준(NFTC 103)을 따르세요.</p>
+
+    <div class="actions">
+      <button type="button" id="btnSave" class="btn ghost">기록 저장</button>
+      <button type="button" id="btnPdf" class="btn solid">PDF 보고서</button>
     </div>
-
-    <section class="verdict" id="verdict"></section>
-
-    <section class="tip">
-      <span>⚠️</span>
-      <p>Tip: 본 그래프는 입력된 수치를 바탕으로 한 시각화 자료이며, 실제 소방시설 성능시험의 법적 근거가 될 수 없습니다. 반드시 공인된 계측기 및 관련 법령에 따른 기준을 우선하여 판단하시기 바랍니다.</p>
-    </section>
-
-    <button type="button" id="btnSave" class="big-btn outline">💾 목록에 저장</button>
-    <button type="button" id="btnPdf" class="big-btn indigo">⬇ PDF 성능시험 보고서 생성</button>
   </main>
 
-  <!-- 모달 -->
-  <div id="modal" class="modal" hidden>
-    <div class="modal-box">
-      <div class="modal-head">
-        <h3 id="modalTitle"></h3>
-        <button type="button" id="modalClose" class="x-btn" aria-label="닫기">✕</button>
+  <!-- ===== 구조 탭 ===== -->
+  <main id="tab-structure" class="tab" hidden>
+    <section class="panel">
+      <div class="panel-title">소화펌프 주변 배관 구성</div>
+      <div id="structureSvg"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-title">구성 요소</div>
+      <dl class="deflist">
+        <dt>연성계·진공계</dt><dd>펌프 흡입측 압력 측정 (수원이 펌프보다 낮을 때)</dd>
+        <dt>압력계</dt><dd>펌프 토출측, 체크밸브 이전에 설치</dd>
+        <dt>순환배관</dt><dd>체절운전 중 수온 상승 방지. 체절압력 미만에서 열리는 릴리프밸브 설치</dd>
+        <dt>성능시험배관</dt><dd>토출측 체크밸브 이전에서 분기. 개폐밸브 → 유량계 → 유량조절밸브 순서</dd>
+        <dt>물올림장치</dt><dd>수원 수위가 펌프보다 낮은 경우 설치</dd>
+        <dt>압력챔버</dt><dd>배관 압력 변화를 감지해 펌프 자동 기동·정지</dd>
+      </dl>
+    </section>
+    <section class="panel">
+      <div class="panel-title">시험 절차</div>
+      <ol class="proc">
+        <li>제어반에서 주·충압펌프를 수동으로 전환하고, 토출측 주 개폐밸브를 잠급니다.</li>
+        <li>성능시험배관 밸브가 닫힌 상태에서 주펌프 기동 → 압력계로 <b>체절압력</b> 기록.</li>
+        <li>성능시험배관 개폐밸브 개방 후 유량조절밸브로 <b>정격토출량</b>에 맞추고 압력 기록.</li>
+        <li>유량조절밸브를 더 열어 <b>정격의 150%</b> 유량에서 압력 기록.</li>
+        <li>펌프 정지, 밸브 원상 복구, 제어반을 자동으로 되돌립니다.</li>
+      </ol>
+      <a class="btn ghost wide" id="btnVideo" target="_blank" rel="noopener">▶ 시험 방법 영상 찾아보기</a>
+    </section>
+  </main>
+
+  <!-- ===== 기준 탭 ===== -->
+  <main id="tab-rule" class="tab" hidden>
+    <section class="panel">
+      <div class="panel-title">합격 기준</div>
+      <div class="rule-grid">
+        <div class="rule"><b>체절운전</b><strong>≤ 140%</strong><span>정격토출압력 대비</span></div>
+        <div class="rule"><b>정격운전</b><strong>≥ 100%</strong><span>정격토출량에서</span></div>
+        <div class="rule"><b>150% 운전</b><strong>≥ 65%</strong><span>정격토출압력 대비</span></div>
       </div>
-      <div id="modalBody" class="modal-body"></div>
-    </div>
-  </div>
+    </section>
+    <section class="panel">
+      <div class="panel-title">용어</div>
+      <dl class="deflist">
+        <dt>정격토출량</dt><dd>정격부하 운전 시, 정격토출압력에서 펌프가 내보내는 유량</dd>
+        <dt>정격토출압력</dt><dd>정격부하 운전 시, 정격토출량에서 펌프 토출측에 걸리는 압력</dd>
+        <dt>체절운전</dt><dd>성능시험을 위해 펌프 토출측 개폐밸브를 잠근 채 운전하는 것</dd>
+        <dt>압력 환산</dt><dd>정격토출압력(MPa) ≈ 정격양정(m) × 0.0098</dd>
+      </dl>
+    </section>
+    <section class="panel">
+      <div class="panel-title">유량계 선정</div>
+      <div class="calc" id="flowmeterCalc"></div>
+      <ul class="bul">
+        <li>유량측정장치는 성능시험배관 직관부에 설치하고, <b>정격토출량의 175% 이상</b>을 측정할 수 있어야 합니다.</li>
+        <li>유량계 앞쪽 직관부에 개폐밸브, 뒤쪽 직관부에 유량조절밸브를 둡니다.</li>
+        <li>전·후 직관 길이는 제조사 기준을 따르되, 보통 앞 8D·뒤 5D 이상을 권장합니다.</li>
+        <li>150% 유량이 눈금 중간 이후에 오는 제품을 고르면 읽기 편합니다.</li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- ===== 기록 탭 ===== -->
+  <main id="tab-records" class="tab" hidden>
+    <section class="panel">
+      <div class="panel-title">저장된 시험 기록</div>
+      <div id="records"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button type="button" data-tab="test" class="on"><span>📊</span>시험</button>
+    <button type="button" data-tab="structure"><span>🛠️</span>펌프구조</button>
+    <button type="button" data-tab="rule"><span>📘</span>기준</button>
+    <button type="button" data-tab="records"><span>🗂️</span>기록</button>
+  </nav>
 
   <div id="toast" class="toast" hidden></div>
   <div id="reportHost" aria-hidden="true"></div>
