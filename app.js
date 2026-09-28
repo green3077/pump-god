@@ -320,67 +320,80 @@ function showTab(name) {
   window.scrollTo(0, 0);
 }
 
-// ===== PDF =====
-let lastPdf = null;   // { file: File, url: string }
+// ===== 보고서 내보내기 (PDF / 이미지) =====
+let lastExport = null;   // { file: File, url: string }
 
-async function makePdf() {
+function reportHtml(v, r) {
+  const judge = s => s === 'ok' ? '<span class="ok">적합</span>' : s === 'bad' ? '<span class="bad">부적합</span>' : '-';
+  const pct = st => st.pct != null ? st.pct.toFixed(1) + '%' : '-';
+  const S = r.steps;
+  const overall = r.overall === 'ok' ? '<span class="ok">합 격</span>' : r.overall === 'bad' ? '<span class="bad">불 합 격</span>' : '미판정';
+  return `
+    <div class="report" id="reportDoc">
+      <div class="rhead">
+        <h1>소화펌프 성능시험 결과서 <span class="rmeta">(${esc(v.site) || '현장명 미기재'}, 작성일 ${today()})</span></h1>
+      </div>
+      <h2>■ 펌프 사양</h2>
+      <table>
+        <tr><th>정격양정</th><td>${esc(v.head)} m</td><th>정격토출압력</th><td>${r.P.toFixed(3)} MPa</td></tr>
+        <tr><th>정격토출량</th><td>${r.Q} LPM</td><th>유량계 필요 측정범위</th><td>${(r.Q * FLOWMETER_MIN).toFixed(0)} LPM 이상</td></tr>
+      </table>
+      <h2>■ 운전점별 측정 결과</h2>
+      <table>
+        <tr><th>운전점</th><th>유량 (LPM)</th><th>압력 (MPa)</th><th>판정 기준</th><th>정격압 대비</th><th>판정</th></tr>
+        <tr><td>체절운전</td><td>0</td><td>${fmt(r.m.churn, 3)}</td><td>${(r.P * CHURN_MAX).toFixed(3)} MPa 이하</td><td>${pct(S.churn)}</td><td>${judge(S.churn.state)}</td></tr>
+        <tr><td>정격운전 (100%)</td><td>${fmt(r.m.q100, 1)}</td><td>${fmt(r.m.p100, 3)}</td><td>${r.P.toFixed(3)} MPa 이상</td><td>${pct(S.rated)}</td><td>${judge(S.rated.state)}</td></tr>
+        <tr><td>최대운전 (150%)</td><td>${fmt(r.m.q150, 1)}</td><td>${fmt(r.m.p150, 3)}</td><td>${(r.P * OVER_MIN).toFixed(3)} MPa 이상</td><td>${pct(S.over)}</td><td>${judge(S.over.state)}</td></tr>
+        <tr><th colspan="5">종합 판정</th><td style="font-size:16px">${overall}</td></tr>
+      </table>
+    </div>`;
+}
+
+const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) =>
+  canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob 실패'))), type, quality));
+
+async function pdfBlob(canvas) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pw = 210, ph = 297;
+  const ih = canvas.height * pw / canvas.width;
+  const img = canvas.toDataURL('image/jpeg', 0.92);
+  if (ih <= ph) pdf.addImage(img, 'JPEG', 0, 0, pw, ih);
+  else pdf.addImage(img, 'JPEG', (pw - pw * ph / ih) / 2, 0, pw * ph / ih, ph);
+  return pdf.output('blob');
+}
+
+// kind: 'pdf' | 'image'
+async function exportReport(kind) {
   const v = readValues();
   const r = evaluate(v);
   if (r.P == null || r.Q == null) { toast('정격양정과 정격토출량을 먼저 입력하세요'); return; }
-  if (!window.html2canvas || !window.jspdf) { toast('PDF 모듈을 불러오지 못했습니다. 인터넷 연결을 확인하세요'); return; }
+  if (!window.html2canvas || (kind === 'pdf' && !window.jspdf)) { toast('보고서 모듈을 불러오지 못했습니다. 인터넷 연결을 확인하세요'); return; }
 
-  const btn = $('btnPdf');
-  btn.disabled = true;
+  const btn = $(kind === 'pdf' ? 'btnPdf' : 'btnImg');
+  const label = btn.textContent;
+  $('btnPdf').disabled = $('btnImg').disabled = true;
   btn.textContent = '만드는 중…';
   try {
     saveRecord(true);
-    const judge = s => s === 'ok' ? '<span class="ok">적합</span>' : s === 'bad' ? '<span class="bad">부적합</span>' : '-';
-    const pct = st => st.pct != null ? st.pct.toFixed(1) + '%' : '-';
-    const S = r.steps;
-    const overall = r.overall === 'ok' ? '<span class="ok">합 격</span>' : r.overall === 'bad' ? '<span class="bad">불 합 격</span>' : '미판정';
-
     const host = $('reportHost');
-    host.innerHTML = `
-      <div class="report" id="reportDoc">
-        <div class="rhead">
-          <h1>소화펌프 성능시험 결과서 <span class="rmeta">(${esc(v.site) || '현장명 미기재'}, 작성일 ${today()})</span></h1>
-        </div>
-        <h2>■ 펌프 사양</h2>
-        <table>
-          <tr><th>정격양정</th><td>${esc(v.head)} m</td><th>정격토출압력</th><td>${r.P.toFixed(3)} MPa</td></tr>
-          <tr><th>정격토출량</th><td>${r.Q} LPM</td><th>유량계 필요 측정범위</th><td>${(r.Q * FLOWMETER_MIN).toFixed(0)} LPM 이상</td></tr>
-        </table>
-        <h2>■ 운전점별 측정 결과</h2>
-        <table>
-          <tr><th>운전점</th><th>유량 (LPM)</th><th>압력 (MPa)</th><th>판정 기준</th><th>정격압 대비</th><th>판정</th></tr>
-          <tr><td>체절운전</td><td>0</td><td>${fmt(r.m.churn, 3)}</td><td>${(r.P * CHURN_MAX).toFixed(3)} MPa 이하</td><td>${pct(S.churn)}</td><td>${judge(S.churn.state)}</td></tr>
-          <tr><td>정격운전 (100%)</td><td>${fmt(r.m.q100, 1)}</td><td>${fmt(r.m.p100, 3)}</td><td>${r.P.toFixed(3)} MPa 이상</td><td>${pct(S.rated)}</td><td>${judge(S.rated.state)}</td></tr>
-          <tr><td>최대운전 (150%)</td><td>${fmt(r.m.q150, 1)}</td><td>${fmt(r.m.p150, 3)}</td><td>${(r.P * OVER_MIN).toFixed(3)} MPa 이상</td><td>${pct(S.over)}</td><td>${judge(S.over.state)}</td></tr>
-          <tr><th colspan="5">종합 판정</th><td style="font-size:16px">${overall}</td></tr>
-        </table>
-      </div>`;
-
+    host.innerHTML = reportHtml(v, r);
     const canvas = await window.html2canvas($('reportDoc'), { scale: 2, backgroundColor: '#ffffff' });
     host.innerHTML = '';
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-    const pw = 210, ph = 297;
-    const ih = canvas.height * pw / canvas.width;
-    const img = canvas.toDataURL('image/jpeg', 0.92);
-    if (ih <= ph) pdf.addImage(img, 'JPEG', 0, 0, pw, ih);
-    else pdf.addImage(img, 'JPEG', (pw - pw * ph / ih) / 2, 0, pw * ph / ih, ph);
 
-    const name = `펌프성능시험_${(v.site || '현장').replace(/[\\/:*?"<>|\s]+/g, '_')}_${today()}.pdf`;
-    if (lastPdf) URL.revokeObjectURL(lastPdf.url);
-    const file = new File([pdf.output('blob')], name, { type: 'application/pdf' });
-    lastPdf = { file, url: URL.createObjectURL(file) };
-    openShareSheet();
+    const base = `펌프성능시험_${(v.site || '현장').replace(/[\\/:*?"<>|\s]+/g, '_')}_${today()}`;
+    const file = kind === 'pdf'
+      ? new File([await pdfBlob(canvas)], base + '.pdf', { type: 'application/pdf' })
+      : new File([await canvasToBlob(canvas, 'image/png')], base + '.png', { type: 'image/png' });
+    if (lastExport) URL.revokeObjectURL(lastExport.url);
+    lastExport = { file, url: URL.createObjectURL(file) };
+    openShareSheet(kind);
   } catch (e) {
     console.error(e);
-    toast('PDF 생성 중 오류가 발생했습니다');
+    toast('보고서 생성 중 오류가 발생했습니다');
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'PDF 보고서';
+    $('btnPdf').disabled = $('btnImg').disabled = false;
+    btn.textContent = label;
   }
 }
 
@@ -388,35 +401,36 @@ function canShareFile(file) {
   try { return !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch { return false; }
 }
 
-function openShareSheet() {
-  $('shareName').textContent = lastPdf.file.name;
-  const ok = canShareFile(lastPdf.file);
+function openShareSheet(kind) {
+  $('sheetTitle').textContent = kind === 'pdf' ? '📄 PDF 보고서가 만들어졌습니다' : '🖼️ 보고서 이미지가 만들어졌습니다';
+  $('shareName').textContent = lastExport.file.name;
+  const ok = canShareFile(lastExport.file);
   $('btnShare').hidden = !ok;
   $('shareNote').hidden = ok;
   $('shareSheet').hidden = false;
 }
 function closeShareSheet() { $('shareSheet').hidden = true; }
 
-// 공유창은 사용자가 버튼을 누른 순간에만 열 수 있어서, PDF를 만든 뒤 별도 버튼으로 공유한다
-async function sharePdf() {
-  if (!lastPdf) return;
+// 공유창은 사용자가 버튼을 누른 순간에만 열 수 있어서, 파일을 만든 뒤 별도 버튼으로 공유한다
+async function shareExport() {
+  if (!lastExport) return;
   try {
-    await navigator.share({ files: [lastPdf.file], title: '소화펌프 성능시험 결과서' });
+    await navigator.share({ files: [lastExport.file], title: '소화펌프 성능시험 결과서' });
     closeShareSheet();
   } catch (e) {
     if (e.name !== 'AbortError') { console.error(e); toast('공유하지 못했습니다. "기기에 저장"을 이용하세요'); }
   }
 }
 
-function downloadPdf() {
-  if (!lastPdf) return;
+function downloadExport() {
+  if (!lastExport) return;
   const a = document.createElement('a');
-  a.href = lastPdf.url;
-  a.download = lastPdf.file.name;
+  a.href = lastExport.url;
+  a.download = lastExport.file.name;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  toast('PDF를 기기에 저장했습니다');
+  toast('기기에 저장했습니다');
 }
 
 // ===== 초기화 =====
@@ -457,9 +471,10 @@ function init() {
     showTab('test');
   };
   $('btnSave').onclick = () => saveRecord(false);
-  $('btnPdf').onclick = makePdf;
-  $('btnShare').onclick = sharePdf;
-  $('btnDownload').onclick = downloadPdf;
+  $('btnPdf').onclick = () => exportReport('pdf');
+  $('btnImg').onclick = () => exportReport('image');
+  $('btnShare').onclick = shareExport;
+  $('btnDownload').onclick = downloadExport;
   $('btnSheetClose').onclick = closeShareSheet;
   $('shareSheet').onclick = e => { if (e.target === $('shareSheet')) closeShareSheet(); };
 }
