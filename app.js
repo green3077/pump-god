@@ -164,7 +164,8 @@ function render() {
   const v = readValues();
   const r = evaluate(v);
 
-  $('topSub').textContent = v.site ? v.site : '소화펌프 성능시험';
+  $('topSub').textContent = v.site ? v.site : '현장명 미입력';
+  $('topSub').classList.toggle('empty', !v.site);
 
   const stat = (label, val, unit) => `<div><span>${label}</span><strong>${val}</strong><small>${unit}</small></div>`;
   r.pumps.forEach((pr, i) => {
