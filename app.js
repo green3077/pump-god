@@ -433,6 +433,13 @@ function downloadExport() {
   toast('기기에 저장했습니다');
 }
 
+function startNewTest() {
+  fill(null);
+  delete $('btnSave').dataset.editId;
+  saveDraft();
+  showTab('test');
+}
+
 // ===== 초기화 =====
 function init() {
   buildSteps();
@@ -465,12 +472,12 @@ function init() {
 
   $('btnNew').onclick = () => {
     if (!confirm('입력값을 모두 비우고 새 시험을 시작할까요?\n(저장된 기록은 그대로 남습니다)')) return;
-    fill(null);
-    delete $('btnSave').dataset.editId;
-    saveDraft();
-    showTab('test');
+    startNewTest();
   };
-  $('btnSave').onclick = () => saveRecord(false);
+  // 기록 저장이 끝나면 바로 새 시험으로 넘어간다
+  $('btnSave').onclick = () => {
+    if (saveRecord(false)) startNewTest();
+  };
   $('btnPdf').onclick = () => exportReport('pdf');
   $('btnImg').onclick = () => exportReport('image');
   $('btnShare').onclick = shareExport;
