@@ -7,3 +7,5 @@
 - 하단 탭: 시험 · 펌프구조 · 기준(유량계 선정 175%) · 기록(기기 localStorage)
 
 로컬 실행: `node serve.js` → http://localhost:8080
+
+배포: `sh deploy.sh "변경 내용"` → version.js에 배포 시각(YYYY-MM-DD HH:MM)을 기록하고 커밋·푸시 (앱 상단에 표시됨)

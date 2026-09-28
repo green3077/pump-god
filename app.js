@@ -391,6 +391,7 @@ async function makePdf() {
 // ===== 초기화 =====
 function init() {
   buildSteps();
+  $('appVer').textContent = typeof APP_VERSION === 'string' ? APP_VERSION : '';
   $('structureSvg').innerHTML = STRUCTURE_SVG;
   $('btnVideo').href = VIDEO_URL;
 
