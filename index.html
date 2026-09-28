@@ -60,6 +60,15 @@
     </div>
   </main>
 
+  <!-- ===== 현장 탭 ===== -->
+  <main id="tab-sites" class="tab" hidden>
+    <section class="panel">
+      <div class="panel-title">저장된 현장</div>
+      <p class="hint-line">현장을 누르면 현장명·정격양정·정격토출량이 채워진 새 시험이 시작됩니다.</p>
+      <div id="sites"></div>
+    </section>
+  </main>
+
   <!-- ===== 구조 탭 ===== -->
   <main id="tab-structure" class="tab" hidden>
     <section class="panel">
@@ -137,6 +146,7 @@
 
   <nav class="tabbar">
     <button type="button" data-tab="test" class="on"><span>📊</span>시험</button>
+    <button type="button" data-tab="sites"><span>📍</span>현장</button>
     <button type="button" data-tab="structure"><span>🛠️</span>펌프구조</button>
     <button type="button" data-tab="rule"><span>📘</span>기준</button>
     <button type="button" data-tab="records"><span>🗂️</span>기록</button>

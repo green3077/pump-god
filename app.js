@@ -12,6 +12,7 @@ const BAR_MAX = 160;              // 막대 게이지 최대 눈금(%)
 const DRAFT_KEY = 'pumpgod.draft';
 const RECORDS_KEY = 'pumpgod.records';
 const SORT_KEY = 'pumpgod.recordSort';
+const SITES_KEY = 'pumpgod.sites';
 const VIDEO_URL = 'https://www.youtube.com/results?search_query=' + encodeURIComponent('소화펌프 성능시험 방법');
 
 const FIELDS = ['site', 'head', 'flow', 'churn', 'q100', 'p100', 'q150', 'p150'];
@@ -265,8 +266,65 @@ function saveRecord(silent) {
   if (idx >= 0) records[idx] = rec; else records.unshift(rec);
   if (!storageSet(RECORDS_KEY, records)) { toast('저장 공간이 부족합니다'); return false; }
   $('btnSave').dataset.editId = id;
-  if (!silent) toast(idx >= 0 ? '기록을 갱신했습니다' : '기록에 저장했습니다');
+  const siteSaved = saveSite(v);
+  if (!silent) toast((idx >= 0 ? '기록을 갱신했습니다' : '기록에 저장했습니다') + (siteSaved ? ' · 현장 저장됨' : ''));
   return true;
+}
+
+// ===== 현장 =====
+// 현장명 기준으로 한 건씩 보관(같은 이름이면 양정·토출량을 최신값으로 갱신)
+function saveSite(v) {
+  const name = (v.site || '').trim();
+  if (!name) return false;
+  const sites = storageGet(SITES_KEY, []).filter(s => s.name !== name);
+  sites.push({ name, head: v.head, flow: v.flow, updatedAt: new Date().toISOString() });
+  return storageSet(SITES_KEY, sites);
+}
+
+// 현장 기능 이전에 저장된 기록에서 현장 목록을 한 번 만들어 둔다
+function seedSitesFromRecords() {
+  if (storageGet(SITES_KEY, null)) return;
+  const records = storageGet(RECORDS_KEY, []).slice().sort((a, b) => (a.savedAt || '').localeCompare(b.savedAt || ''));
+  const map = new Map();
+  for (const rec of records) {
+    const name = (rec.values.site || '').trim();
+    if (name) map.set(name, { name, head: rec.values.head, flow: rec.values.flow, updatedAt: rec.savedAt });
+  }
+  storageSet(SITES_KEY, [...map.values()]);
+}
+
+function renderSites() {
+  const sites = storageGet(SITES_KEY, []).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  $('sites').innerHTML = sites.length ? sites.map(s => `
+    <div class="rec" data-name="${esc(s.name)}">
+      <div class="rec-main"><b>${esc(s.name)}</b>
+        <span>양정 ${esc(s.head)} m · ${esc(s.flow)} LPM · ${esc(localStamp(s.updatedAt))}</span></div>
+      <span class="pill">불러오기</span>
+      <button type="button" class="rec-del" aria-label="삭제">✕</button>
+    </div>`).join('') : '<p class="empty">저장된 현장이 없습니다.<br>현장명을 입력하고 "기록 저장"을 누르면 여기에 등록됩니다.</p>';
+}
+
+function onSitesClick(e) {
+  const item = e.target.closest('.rec');
+  if (!item) return;
+  const name = item.dataset.name;
+  const sites = storageGet(SITES_KEY, []);
+  if (e.target.closest('.rec-del')) {
+    if (!confirm(`'${name}' 현장을 삭제할까요?\n(시험 기록은 그대로 남습니다)`)) return;
+    storageSet(SITES_KEY, sites.filter(s => s.name !== name));
+    renderSites();
+    return;
+  }
+  const s = sites.find(x => x.name === name);
+  if (!s) return;
+  const cur = readValues();
+  const hasMeasure = ['churn', 'q100', 'p100', 'q150', 'p150'].some(k => cur[k] !== '');
+  if (hasMeasure && !confirm('입력 중인 측정값을 비우고 이 현장으로 새 시험을 시작할까요?')) return;
+  fill({ site: s.name, head: s.head, flow: s.flow });
+  delete $('btnSave').dataset.editId;
+  saveDraft();
+  showTab('test');
+  toast(`'${s.name}' 현장을 불러왔습니다`);
 }
 
 function sortRecords(records, mode) {
@@ -321,6 +379,7 @@ function showTab(name) {
   for (const el of document.querySelectorAll('.tab')) el.hidden = el.id !== 'tab-' + name;
   for (const b of document.querySelectorAll('.tabbar button')) b.classList.toggle('on', b.dataset.tab === name);
   if (name === 'records') renderRecords();
+  if (name === 'sites') renderSites();
   window.scrollTo(0, 0);
 }
 
@@ -413,6 +472,7 @@ function init() {
   $('structureSvg').innerHTML = STRUCTURE_SVG;
   $('btnVideo').href = VIDEO_URL;
 
+  seedSitesFromRecords();
   fill(storageGet(DRAFT_KEY, null));
 
   $('tab-test').addEventListener('input', e => {
@@ -420,6 +480,7 @@ function init() {
   });
   for (const b of document.querySelectorAll('.tabbar button')) b.onclick = () => showTab(b.dataset.tab);
   $('records').addEventListener('click', onRecordsClick);
+  $('sites').addEventListener('click', onSitesClick);
   $('recSort').addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
