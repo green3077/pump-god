@@ -26,27 +26,17 @@
 
   <!-- ===== 시험 탭 ===== -->
   <main id="tab-test" class="tab">
-    <section class="panel">
-      <div class="panel-title"><span class="num">01</span> 펌프 사양</div>
+    <section class="panel site-panel">
       <label class="fld">
         <span>현장명</span>
         <input id="site" type="text" placeholder="건물·현장 이름">
       </label>
-      <div class="grid2">
-        <label class="fld">
-          <span>정격양정</span>
-          <div class="unit-inp"><input id="head" type="number" inputmode="decimal" step="any" placeholder="0"><em>m</em></div>
-        </label>
-        <label class="fld">
-          <span>정격토출량</span>
-          <div class="unit-inp"><input id="flow" type="number" inputmode="decimal" step="any" placeholder="0"><em>LPM</em></div>
-        </label>
-      </div>
-      <div class="spec-strip" id="specStrip"></div>
     </section>
 
+    <div id="pumpSpecs"></div>
+
     <section class="panel">
-      <div class="panel-title"><span class="num">02</span> 운전점별 측정</div>
+      <div class="panel-title"><span class="num" id="stepsNum">02</span> 운전점별 측정</div>
       <div id="steps"></div>
     </section>
 

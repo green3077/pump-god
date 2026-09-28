@@ -15,7 +15,10 @@ const SORT_KEY = 'pumpgod.recordSort';
 const SITES_KEY = 'pumpgod.sites';
 const VIDEO_URL = 'https://www.youtube.com/results?search_query=' + encodeURIComponent('소화펌프 성능시험 방법');
 
-const FIELDS = ['site', 'head', 'flow', 'churn', 'q100', 'p100', 'q150', 'p150'];
+// 펌프는 주펌프 1대 + 예비펌프(선택) 1대
+const PUMP_NAMES = ['주펌프', '예비펌프'];
+const PUMP_FIELDS = ['head', 'flow', 'churn', 'q100', 'p100', 'q150', 'p150'];
+const MEASURE_FIELDS = ['churn', 'q100', 'p100', 'q150', 'p150'];
 
 const STEPS = [
   { key: 'churn', name: '체절운전', sub: '토출량 0% · 개폐밸브 잠금', flowKey: null, pKey: 'churn', mark: 140, rule: '상한 140%' },
@@ -52,25 +55,43 @@ function toast(msg) {
   toast._t = setTimeout(() => { t.hidden = true; }, 2200);
 }
 
-// ===== 계산 =====
-function readValues() {
-  const v = {};
-  for (const f of FIELDS) v[f] = $(f).value;
-  return v;
+// ===== 값 구조 =====
+// values = { site, pumps: [{ head, flow, churn, q100, p100, q150, p150 }, ...] }
+const emptyPump = () => Object.fromEntries(PUMP_FIELDS.map(f => [f, '']));
+
+// 예전(펌프 1대, 평평한 구조) 기록·임시저장도 새 구조로 읽는다
+function normalizeValues(v) {
+  if (!v) return { site: '', pumps: [emptyPump()] };
+  const src = Array.isArray(v.pumps) && v.pumps.length ? v.pumps : [v];
+  const pumps = src.slice(0, PUMP_NAMES.length).map(p => Object.fromEntries(PUMP_FIELDS.map(f => [f, p?.[f] ?? ''])));
+  return { site: v.site ?? '', pumps };
 }
 
-function evaluate(v) {
-  const head = num(v.head), flow = num(v.flow);
+function pumpCount() { return document.querySelectorAll('#pumpSpecs .pump-spec').length; }
+
+function readValues() {
+  const pumps = [];
+  for (let i = 0; i < pumpCount(); i++) {
+    const p = {};
+    for (const f of PUMP_FIELDS) p[f] = document.querySelector(`[data-p="${i}"][data-f="${f}"]`).value;
+    pumps.push(p);
+  }
+  return { site: $('site').value, pumps };
+}
+
+// ===== 계산 =====
+function evaluatePump(p) {
+  const head = num(p.head), flow = num(p.flow);
   const P = head != null && head > 0 ? head * M_TO_MPA : null;
   const Q = flow != null && flow > 0 ? flow : null;
   const m = {};
-  for (const k of ['churn', 'q100', 'p100', 'q150', 'p150']) m[k] = num(v[k]);
+  for (const k of MEASURE_FIELDS) m[k] = num(p[k]);
 
   const target = { churn: 0, rated: Q, over: Q != null ? Q * OVER_FLOW : null };
   const steps = {};
   for (const s of STEPS) {
-    const p = m[s.pKey];
-    const pct = p != null && P ? (p / P) * 100 : null;
+    const pr = m[s.pKey];
+    const pct = pr != null && P ? (pr / P) * 100 : null;
     let state = null;
     if (pct != null) state = s.key === 'churn' ? (pct <= s.mark ? 'ok' : 'bad') : (pct >= s.mark ? 'ok' : 'bad');
     let flowDev = null;
@@ -83,69 +104,113 @@ function evaluate(v) {
   return { P, Q, m, steps, overall };
 }
 
-// ===== 렌더링 =====
-function buildSteps() {
-  $('steps').innerHTML = STEPS.map(s => `
-    <div class="step">
-      <div class="step-head">
-        <div class="step-name">${s.name}<small>${s.sub}</small></div>
-        <span class="pill" id="pill-${s.key}">입력 대기</span>
-      </div>
-      <div class="${s.flowKey ? 'grid2' : ''}">
-        ${s.flowKey ? `<label class="fld"><span>유량</span>
-          <div class="unit-inp"><input id="${s.flowKey}" type="number" inputmode="decimal" step="any" placeholder="-"><em>LPM</em></div></label>` : ''}
-        <label class="fld"><span>토출압력</span>
-          <div class="unit-inp"><input id="${s.pKey}" type="number" inputmode="decimal" step="any" placeholder="-"><em>MPa</em></div></label>
-      </div>
-      <div class="bar"><div class="fill" id="fill-${s.key}"></div><div class="mark" style="left:${(s.mark / BAR_MAX) * 100}%"></div></div>
-      <div class="bar-cap"><span id="cap-${s.key}">정격압 대비 -</span><span>${s.rule}</span></div>
-      <div class="bar-cap" id="note-${s.key}"></div>
-    </div>`).join('');
+function evaluate(v) {
+  const pumps = v.pumps.map(evaluatePump);
+  const all = pumps.map(r => r.overall);
+  const overall = all.every(Boolean) ? (all.includes('bad') ? 'bad' : 'ok') : null;
+  return { pumps, overall };
 }
 
+// ===== 화면 구성 =====
+function pumpSpecHtml(i) {
+  const action = i === 0
+    ? `<button type="button" class="mini-btn" id="btnAddPump">＋ 펌프 추가</button>`
+    : `<button type="button" class="mini-btn danger" data-remove="${i}">삭제</button>`;
+  const inp = (f, unit) => `<div class="unit-inp"><input data-p="${i}" data-f="${f}" type="number" inputmode="decimal" step="any" placeholder="0"><em>${unit}</em></div>`;
+  return `
+    <section class="panel pump-spec">
+      <div class="panel-head">
+        <div class="panel-title"><span class="num">0${i + 1}</span> 펌프사양(${PUMP_NAMES[i]})</div>
+        ${action}
+      </div>
+      <div class="grid2">
+        <label class="fld"><span>정격양정</span>${inp('head', 'm')}</label>
+        <label class="fld"><span>정격토출량</span>${inp('flow', 'LPM')}</label>
+      </div>
+      <div class="spec-strip" id="strip-${i}"></div>
+    </section>`;
+}
+
+function stepsHtml(i, multi) {
+  const inp = (f, unit) => `<div class="unit-inp"><input data-p="${i}" data-f="${f}" type="number" inputmode="decimal" step="any" placeholder="-"><em>${unit}</em></div>`;
+  return `
+    <div class="pump-steps">
+      ${multi ? `<div class="pump-label">${PUMP_NAMES[i]}</div>` : ''}
+      ${STEPS.map(s => `
+      <div class="step">
+        <div class="step-head">
+          <div class="step-name">${s.name}<small>${s.sub}</small></div>
+          <span class="pill" id="pill-${i}-${s.key}">입력 대기</span>
+        </div>
+        <div class="${s.flowKey ? 'grid2' : ''}">
+          ${s.flowKey ? `<label class="fld"><span>유량</span>${inp(s.flowKey, 'LPM')}</label>` : ''}
+          <label class="fld"><span>토출압력</span>${inp(s.pKey, 'MPa')}</label>
+        </div>
+        <div class="bar"><div class="fill" id="fill-${i}-${s.key}"></div><div class="mark" style="left:${(s.mark / BAR_MAX) * 100}%"></div></div>
+        <div class="bar-cap"><span id="cap-${i}-${s.key}">정격압 대비 -</span><span>${s.rule}</span></div>
+        <div class="bar-cap" id="note-${i}-${s.key}"></div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function buildPumps(n) {
+  $('pumpSpecs').innerHTML = Array.from({ length: n }, (_, i) => pumpSpecHtml(i)).join('');
+  $('steps').innerHTML = Array.from({ length: n }, (_, i) => stepsHtml(i, n > 1)).join('');
+  $('btnAddPump').hidden = n >= PUMP_NAMES.length;
+  $('stepsNum').textContent = '0' + (n + 1);
+}
+
+// ===== 렌더링 =====
 function render() {
   const v = readValues();
   const r = evaluate(v);
-  const { P, Q } = r;
 
   $('topSub').textContent = v.site ? v.site : '소화펌프 성능시험';
 
   const stat = (label, val, unit) => `<div><span>${label}</span><strong>${val}</strong><small>${unit}</small></div>`;
-  $('specStrip').innerHTML =
-    stat('정격토출압력', fmt(P, 3), 'MPa') +
-    stat('체절 상한 (140%)', fmt(P != null ? P * CHURN_MAX : null, 3), 'MPa') +
-    stat('150% 운전 유량', fmt(Q != null ? Q * OVER_FLOW : null, 0), 'LPM') +
-    stat('150% 압력 하한 (65%)', fmt(P != null ? P * OVER_MIN : null, 3), 'MPa');
+  r.pumps.forEach((pr, i) => {
+    const { P, Q } = pr;
+    $('strip-' + i).innerHTML =
+      stat('정격토출압력', fmt(P, 3), 'MPa') +
+      stat('체절 상한 (140%)', fmt(P != null ? P * CHURN_MAX : null, 3), 'MPa') +
+      stat('150% 운전 유량', fmt(Q != null ? Q * OVER_FLOW : null, 0), 'LPM') +
+      stat('150% 압력 하한 (65%)', fmt(P != null ? P * OVER_MIN : null, 3), 'MPa');
 
-  for (const s of STEPS) {
-    const st = r.steps[s.key];
-    if (s.flowKey) $(s.flowKey).placeholder = st.target ? `목표 ${st.target.toFixed(0)}` : '-';
-    const pill = $('pill-' + s.key);
-    pill.className = 'pill ' + (st.state || '');
-    pill.textContent = st.state === 'ok' ? '적합' : st.state === 'bad' ? '부적합' : '입력 대기';
-    const fill = $('fill-' + s.key);
-    fill.className = 'fill ' + (st.state || '');
-    fill.style.width = `${Math.min(st.pct ?? 0, BAR_MAX) / BAR_MAX * 100}%`;
-    $('cap-' + s.key).innerHTML = `정격압 대비 <b>${st.pct != null ? st.pct.toFixed(1) + '%' : '-'}</b>`;
-    const note = $('note-' + s.key);
-    if (st.flowDev != null && Math.abs(st.flowDev) > FLOW_TOL * 100) {
-      note.innerHTML = `<span class="pill warn">유량 확인</span><span>목표 유량과 ${st.flowDev > 0 ? '+' : ''}${st.flowDev.toFixed(1)}% 차이</span>`;
-    } else note.innerHTML = '';
-  }
+    for (const s of STEPS) {
+      const st = pr.steps[s.key];
+      if (s.flowKey) document.querySelector(`[data-p="${i}"][data-f="${s.flowKey}"]`).placeholder = st.target ? `목표 ${st.target.toFixed(0)}` : '-';
+      const pill = $(`pill-${i}-${s.key}`);
+      pill.className = 'pill ' + (st.state || '');
+      pill.textContent = st.state === 'ok' ? '적합' : st.state === 'bad' ? '부적합' : '입력 대기';
+      const fill = $(`fill-${i}-${s.key}`);
+      fill.className = 'fill ' + (st.state || '');
+      fill.style.width = `${Math.min(st.pct ?? 0, BAR_MAX) / BAR_MAX * 100}%`;
+      $(`cap-${i}-${s.key}`).innerHTML = `정격압 대비 <b>${st.pct != null ? st.pct.toFixed(1) + '%' : '-'}</b>`;
+      const note = $(`note-${i}-${s.key}`);
+      if (st.flowDev != null && Math.abs(st.flowDev) > FLOW_TOL * 100) {
+        note.innerHTML = `<span class="pill warn">유량 확인</span><span>목표 유량과 ${st.flowDev > 0 ? '+' : ''}${st.flowDev.toFixed(1)}% 차이</span>`;
+      } else note.innerHTML = '';
+    }
+  });
 
-
+  const multi = r.pumps.length > 1;
   const vd = $('verdict');
   if (r.overall) {
     const ok = r.overall === 'ok';
-    const fails = STEPS.filter(s => r.steps[s.key].state === 'bad').map(s => s.name);
+    const fails = [];
+    r.pumps.forEach((pr, i) => {
+      const bad = STEPS.filter(s => pr.steps[s.key].state === 'bad').map(s => s.name);
+      if (bad.length) fails.push((multi ? PUMP_NAMES[i] + ' ' : '') + bad.join(', '));
+    });
     vd.className = 'result ' + r.overall;
     vd.innerHTML = `<span class="big">${ok ? '합격' : '불합격'}</span>
-      <span>${ok ? '세 운전점 모두 성능 기준을 충족합니다' : esc(fails.join(', ')) + ' 기준 미달'}<small>체절 ≤140% · 정격 ≥100% · 150% 운전 ≥65%</small></span>`;
+      <span>${ok ? (multi ? '주펌프·예비펌프 모두 성능 기준을 충족합니다' : '세 운전점 모두 성능 기준을 충족합니다') : esc(fails.join(' / ')) + ' 기준 미달'}<small>체절 ≤140% · 정격 ≥100% · 150% 운전 ≥65%</small></span>`;
   } else {
     vd.className = 'result';
-    vd.textContent = '펌프 사양과 세 운전점의 압력을 모두 입력하면 종합 판정이 나옵니다.';
+    vd.textContent = `펌프 사양과 세 운전점의 압력을 ${multi ? '펌프마다 ' : ''}모두 입력하면 종합 판정이 나옵니다.`;
   }
 
+  const Q = r.pumps[0].Q;
   $('flowmeterCalc').innerHTML = Q != null
     ? `정격토출량 ${Q} LPM → 유량계 최대 측정범위 <b>${(Q * FLOWMETER_MIN).toFixed(0)} LPM 이상</b><br>(150% 운전 유량 ${(Q * OVER_FLOW).toFixed(0)} LPM)`
     : '시험 탭에서 정격토출량을 입력하면 필요한 유량계 측정범위를 계산해 줍니다.';
@@ -188,14 +253,37 @@ const STRUCTURE_SVG = `
 // ===== 저장/기록 =====
 function saveDraft() { storageSet(DRAFT_KEY, readValues()); }
 function fill(values) {
-  for (const f of FIELDS) $(f).value = values?.[f] ?? '';
+  const v = normalizeValues(values);
+  buildPumps(v.pumps.length);
+  $('site').value = v.site;
+  v.pumps.forEach((p, i) => {
+    for (const f of PUMP_FIELDS) document.querySelector(`[data-p="${i}"][data-f="${f}"]`).value = p[f];
+  });
   render();
+}
+
+function addPump() {
+  const v = readValues();
+  if (v.pumps.length >= PUMP_NAMES.length) return;
+  v.pumps.push(emptyPump());
+  fill(v);
+  saveDraft();
+  document.querySelector(`[data-p="${v.pumps.length - 1}"][data-f="head"]`).focus();
+}
+
+function removePump(i) {
+  const v = readValues();
+  const hasData = PUMP_FIELDS.some(f => v.pumps[i][f] !== '');
+  if (hasData && !confirm(`${PUMP_NAMES[i]} 입력값을 삭제할까요?`)) return;
+  v.pumps.splice(i, 1);
+  fill(v);
+  saveDraft();
 }
 
 function saveRecord(silent) {
   const v = readValues();
   const r = evaluate(v);
-  if (r.P == null || r.Q == null) { toast('정격양정과 정격토출량을 먼저 입력하세요'); return false; }
+  if (r.pumps[0].P == null || r.pumps[0].Q == null) { toast('주펌프 정격양정과 정격토출량을 먼저 입력하세요'); return false; }
   const records = storageGet(RECORDS_KEY, []);
   const id = $('btnSave').dataset.editId || String(Date.now());
   const rec = { id, savedAt: new Date().toISOString(), values: v, overall: r.overall };
@@ -209,12 +297,17 @@ function saveRecord(silent) {
 }
 
 // ===== 현장 =====
-// 현장명 기준으로 한 건씩 보관(같은 이름이면 양정·토출량을 최신값으로 갱신)
-function saveSite(v) {
+// 현장 = { name, pumps: [{ head, flow }], updatedAt } — 같은 이름이면 최신값으로 갱신
+function siteSpecs(s) {
+  return Array.isArray(s.pumps) && s.pumps.length ? s.pumps : [{ head: s.head ?? '', flow: s.flow ?? '' }];
+}
+
+function saveSite(values) {
+  const v = normalizeValues(values);
   const name = (v.site || '').trim();
   if (!name) return false;
   const sites = storageGet(SITES_KEY, []).filter(s => s.name !== name);
-  sites.push({ name, head: v.head, flow: v.flow, updatedAt: new Date().toISOString() });
+  sites.push({ name, pumps: v.pumps.map(p => ({ head: p.head, flow: p.flow })), updatedAt: new Date().toISOString() });
   return storageSet(SITES_KEY, sites);
 }
 
@@ -224,10 +317,17 @@ function seedSitesFromRecords() {
   const records = storageGet(RECORDS_KEY, []).slice().sort((a, b) => (a.savedAt || '').localeCompare(b.savedAt || ''));
   const map = new Map();
   for (const rec of records) {
-    const name = (rec.values.site || '').trim();
-    if (name) map.set(name, { name, head: rec.values.head, flow: rec.values.flow, updatedAt: rec.savedAt });
+    const v = normalizeValues(rec.values);
+    const name = (v.site || '').trim();
+    if (name) map.set(name, { name, pumps: v.pumps.map(p => ({ head: p.head, flow: p.flow })), updatedAt: rec.savedAt });
   }
   storageSet(SITES_KEY, [...map.values()]);
+}
+
+// 목록에 보여줄 펌프 요약: "양정 70 m · 520 LPM" (+ 예비펌프)
+function specSummary(pumps) {
+  const main = pumps[0] || {};
+  return `양정 ${esc(main.head)} m · ${esc(main.flow)} LPM${pumps.length > 1 ? ' · 예비펌프 포함' : ''}`;
 }
 
 function renderSites() {
@@ -235,7 +335,7 @@ function renderSites() {
   $('sites').innerHTML = sites.length ? sites.map(s => `
     <div class="rec" data-name="${esc(s.name)}">
       <div class="rec-main"><b>${esc(s.name)}</b>
-        <span>양정 ${esc(s.head)} m · ${esc(s.flow)} LPM · ${esc(localStamp(s.updatedAt))}</span></div>
+        <span>${specSummary(siteSpecs(s))} · ${esc(localStamp(s.updatedAt))}</span></div>
       <span class="pill">불러오기</span>
       <button type="button" class="rec-del" aria-label="삭제">✕</button>
     </div>`).join('') : '<p class="empty">저장된 현장이 없습니다.<br>현장명을 입력하고 "기록 저장"을 누르면 여기에 등록됩니다.</p>';
@@ -255,9 +355,9 @@ function onSitesClick(e) {
   const s = sites.find(x => x.name === name);
   if (!s) return;
   const cur = readValues();
-  const hasMeasure = ['churn', 'q100', 'p100', 'q150', 'p150'].some(k => cur[k] !== '');
+  const hasMeasure = cur.pumps.some(p => MEASURE_FIELDS.some(k => p[k] !== ''));
   if (hasMeasure && !confirm('입력 중인 측정값을 비우고 이 현장으로 새 시험을 시작할까요?')) return;
-  fill({ site: s.name, head: s.head, flow: s.flow });
+  fill({ site: s.name, pumps: siteSpecs(s).map(p => ({ head: p.head, flow: p.flow })) });
   delete $('btnSave').dataset.editId;
   saveDraft();
   showTab('test');
@@ -279,11 +379,11 @@ function renderRecords() {
   for (const b of $('recSort').children) b.classList.toggle('on', b.dataset.sort === mode);
   const records = sortRecords(storageGet(RECORDS_KEY, []), mode);
   $('records').innerHTML = records.length ? records.map(rec => {
-    const v = rec.values;
+    const v = normalizeValues(rec.values);
     const [cls, label] = rec.overall === 'ok' ? ['ok', '합격'] : rec.overall === 'bad' ? ['bad', '불합격'] : ['', '미판정'];
     return `<div class="rec" data-id="${esc(rec.id)}">
       <div class="rec-main"><b>${esc(v.site || '현장명 없음')}</b>
-        <span>${esc(localStamp(rec.savedAt))} · 양정 ${esc(v.head)} m · ${esc(v.flow)} LPM</span></div>
+        <span>${esc(localStamp(rec.savedAt))} · ${specSummary(v.pumps)}</span></div>
       <span class="pill ${cls}">${label}</span>
       <button type="button" class="rec-del" aria-label="삭제">✕</button>
     </div>`;
@@ -323,29 +423,35 @@ function showTab(name) {
 // ===== 보고서 내보내기 (PDF / 이미지) =====
 let lastExport = null;   // { file: File, url: string }
 
-function reportHtml(v, r) {
+function reportPumpHtml(p, r, name) {
   const judge = s => s === 'ok' ? '<span class="ok">적합</span>' : s === 'bad' ? '<span class="bad">부적합</span>' : '-';
   const pct = st => st.pct != null ? st.pct.toFixed(1) + '%' : '-';
   const S = r.steps;
   const overall = r.overall === 'ok' ? '<span class="ok">합 격</span>' : r.overall === 'bad' ? '<span class="bad">불 합 격</span>' : '미판정';
+  const P = r.P, Q = r.Q;
+  return `
+      <h2>■ 펌프 사양 (${name})</h2>
+      <table>
+        <tr><th>정격양정</th><td>${esc(p.head) || '-'} m</td><th>정격토출압력</th><td>${fmt(P, 3)} MPa</td></tr>
+        <tr><th>정격토출량</th><td>${Q ?? '-'} LPM</td><th>유량계 필요 측정범위</th><td>${Q != null ? (Q * FLOWMETER_MIN).toFixed(0) + ' LPM 이상' : '-'}</td></tr>
+      </table>
+      <h2>■ 운전점별 측정 결과 (${name})</h2>
+      <table>
+        <tr><th>운전점</th><th>유량 (LPM)</th><th>압력 (MPa)</th><th>판정 기준</th><th>정격압 대비</th><th>판정</th></tr>
+        <tr><td>체절운전</td><td>0</td><td>${fmt(r.m.churn, 3)}</td><td>${P != null ? (P * CHURN_MAX).toFixed(3) + ' MPa 이하' : '-'}</td><td>${pct(S.churn)}</td><td>${judge(S.churn.state)}</td></tr>
+        <tr><td>정격운전 (100%)</td><td>${fmt(r.m.q100, 1)}</td><td>${fmt(r.m.p100, 3)}</td><td>${P != null ? P.toFixed(3) + ' MPa 이상' : '-'}</td><td>${pct(S.rated)}</td><td>${judge(S.rated.state)}</td></tr>
+        <tr><td>최대운전 (150%)</td><td>${fmt(r.m.q150, 1)}</td><td>${fmt(r.m.p150, 3)}</td><td>${P != null ? (P * OVER_MIN).toFixed(3) + ' MPa 이상' : '-'}</td><td>${pct(S.over)}</td><td>${judge(S.over.state)}</td></tr>
+        <tr><th colspan="5">판정 (${name})</th><td style="font-size:16px">${overall}</td></tr>
+      </table>`;
+}
+
+function reportHtml(v, r) {
   return `
     <div class="report" id="reportDoc">
       <div class="rhead">
         <h1>소화펌프 성능시험 결과서 <span class="rmeta">(${esc(v.site) || '현장명 미기재'}, 작성일 ${today()})</span></h1>
       </div>
-      <h2>■ 펌프 사양</h2>
-      <table>
-        <tr><th>정격양정</th><td>${esc(v.head)} m</td><th>정격토출압력</th><td>${r.P.toFixed(3)} MPa</td></tr>
-        <tr><th>정격토출량</th><td>${r.Q} LPM</td><th>유량계 필요 측정범위</th><td>${(r.Q * FLOWMETER_MIN).toFixed(0)} LPM 이상</td></tr>
-      </table>
-      <h2>■ 운전점별 측정 결과</h2>
-      <table>
-        <tr><th>운전점</th><th>유량 (LPM)</th><th>압력 (MPa)</th><th>판정 기준</th><th>정격압 대비</th><th>판정</th></tr>
-        <tr><td>체절운전</td><td>0</td><td>${fmt(r.m.churn, 3)}</td><td>${(r.P * CHURN_MAX).toFixed(3)} MPa 이하</td><td>${pct(S.churn)}</td><td>${judge(S.churn.state)}</td></tr>
-        <tr><td>정격운전 (100%)</td><td>${fmt(r.m.q100, 1)}</td><td>${fmt(r.m.p100, 3)}</td><td>${r.P.toFixed(3)} MPa 이상</td><td>${pct(S.rated)}</td><td>${judge(S.rated.state)}</td></tr>
-        <tr><td>최대운전 (150%)</td><td>${fmt(r.m.q150, 1)}</td><td>${fmt(r.m.p150, 3)}</td><td>${(r.P * OVER_MIN).toFixed(3)} MPa 이상</td><td>${pct(S.over)}</td><td>${judge(S.over.state)}</td></tr>
-        <tr><th colspan="5">종합 판정</th><td style="font-size:16px">${overall}</td></tr>
-      </table>
+      ${v.pumps.map((p, i) => reportPumpHtml(p, r.pumps[i], PUMP_NAMES[i])).join('')}
     </div>`;
 }
 
@@ -367,7 +473,7 @@ async function pdfBlob(canvas) {
 async function exportReport(kind) {
   const v = readValues();
   const r = evaluate(v);
-  if (r.P == null || r.Q == null) { toast('정격양정과 정격토출량을 먼저 입력하세요'); return; }
+  if (r.pumps[0].P == null || r.pumps[0].Q == null) { toast('주펌프 정격양정과 정격토출량을 먼저 입력하세요'); return; }
   if (!window.html2canvas || (kind === 'pdf' && !window.jspdf)) { toast('보고서 모듈을 불러오지 못했습니다. 인터넷 연결을 확인하세요'); return; }
 
   const btn = $(kind === 'pdf' ? 'btnPdf' : 'btnImg');
@@ -442,7 +548,6 @@ function startNewTest() {
 
 // ===== 초기화 =====
 function init() {
-  buildSteps();
   $('appVer').textContent = typeof APP_VERSION === 'string' ? APP_VERSION : '';
   $('structureSvg').innerHTML = STRUCTURE_SVG;
   $('btnVideo').href = VIDEO_URL;
@@ -452,6 +557,12 @@ function init() {
 
   $('tab-test').addEventListener('input', e => {
     if (e.target.matches('input')) { render(); saveDraft(); }
+  });
+  // 펌프 추가/삭제 버튼은 다시 그려지므로 위임으로 처리
+  $('pumpSpecs').addEventListener('click', e => {
+    if (e.target.closest('#btnAddPump')) addPump();
+    const rm = e.target.closest('[data-remove]');
+    if (rm) removePump(Number(rm.dataset.remove));
   });
   for (const b of document.querySelectorAll('.tabbar button')) b.onclick = () => showTab(b.dataset.tab);
   $('records').addEventListener('click', onRecordsClick);

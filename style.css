@@ -191,3 +191,13 @@ button, input { font: inherit; color: inherit; }
 .sheet-file { font-size: 13px; color: var(--muted); word-break: break-all; margin-bottom: 4px; }
 .sheet-note { margin: 0; font-size: 13px; color: var(--muted); }
 .sheet-close { background: none; border: 0; padding: 8px; color: var(--muted); font-weight: 700; cursor: pointer; }
+
+/* 현장명 / 펌프 사양 */
+.site-panel .fld { margin-bottom: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.panel-head .panel-title { margin-bottom: 0; }
+.mini-btn { flex: none; border: 1.5px solid var(--teal); background: var(--teal-soft); color: #0b7a73; font-size: 12px; font-weight: 800; padding: 5px 10px; border-radius: 7px; cursor: pointer; }
+.mini-btn.danger { border-color: #e7b3ad; background: var(--bad-soft); color: var(--bad); }
+.mini-btn[hidden] { display: none; }
+.pump-steps + .pump-steps { margin-top: 18px; padding-top: 14px; border-top: 2px solid var(--line); }
+.pump-label { display: inline-block; font-size: 13px; font-weight: 800; color: #fff; background: var(--navy); padding: 3px 10px; border-radius: 6px; margin-bottom: 12px; }
