@@ -13,7 +13,6 @@ const DRAFT_KEY = 'pumpgod.draft';
 const RECORDS_KEY = 'pumpgod.records';
 const SORT_KEY = 'pumpgod.recordSort';
 const SITES_KEY = 'pumpgod.sites';
-const VIDEO_URL = 'https://www.youtube.com/results?search_query=' + encodeURIComponent('소화펌프 성능시험 방법');
 
 // 펌프는 주펌프 1대 + 예비펌프(선택) 1대
 const PUMP_NAMES = ['주펌프', '예비펌프'];
@@ -550,7 +549,6 @@ function startNewTest() {
 function init() {
   $('appVer').textContent = typeof APP_VERSION === 'string' ? APP_VERSION : '';
   $('structureSvg').innerHTML = STRUCTURE_SVG;
-  $('btnVideo').href = VIDEO_URL;
 
   seedSitesFromRecords();
   fill(storageGet(DRAFT_KEY, null));
