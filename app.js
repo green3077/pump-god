@@ -481,6 +481,13 @@ function init() {
   for (const b of document.querySelectorAll('.tabbar button')) b.onclick = () => showTab(b.dataset.tab);
   $('records').addEventListener('click', onRecordsClick);
   $('sites').addEventListener('click', onSitesClick);
+  $('methodSeg').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    for (const x of $('methodSeg').children) x.classList.toggle('on', x === b);
+    for (const el of document.querySelectorAll('#tab-method .sub')) el.hidden = el.id !== 'sub-' + b.dataset.sub;
+    window.scrollTo(0, 0);
+  });
   $('recSort').addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;

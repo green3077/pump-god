@@ -69,8 +69,13 @@
     </section>
   </main>
 
-  <!-- ===== 구조 탭 ===== -->
-  <main id="tab-structure" class="tab" hidden>
+  <!-- ===== 시험방법 탭 (펌프구조 + 기준) ===== -->
+  <main id="tab-method" class="tab" hidden>
+    <div class="seg seg-wide" id="methodSeg" role="tablist">
+      <button type="button" data-sub="structure" class="on">🛠️ 펌프구조</button>
+      <button type="button" data-sub="rule">📘 기준</button>
+    </div>
+    <div id="sub-structure" class="sub">
     <section class="panel">
       <div class="panel-title">소화펌프 주변 배관 구성</div>
       <div id="structureSvg"></div>
@@ -97,10 +102,8 @@
       </ol>
       <a class="btn ghost wide" id="btnVideo" target="_blank" rel="noopener">▶ 시험 방법 영상 찾아보기</a>
     </section>
-  </main>
-
-  <!-- ===== 기준 탭 ===== -->
-  <main id="tab-rule" class="tab" hidden>
+    </div>
+    <div id="sub-rule" class="sub" hidden>
     <section class="panel">
       <div class="panel-title">합격 기준</div>
       <div class="rule-grid">
@@ -128,6 +131,7 @@
         <li>150% 유량이 눈금 중간 이후에 오는 제품을 고르면 읽기 편합니다.</li>
       </ul>
     </section>
+    </div>
   </main>
 
   <!-- ===== 기록 탭 ===== -->
@@ -147,8 +151,7 @@
   <nav class="tabbar">
     <button type="button" data-tab="test" class="on"><span>📊</span>시험</button>
     <button type="button" data-tab="sites"><span>📍</span>현장</button>
-    <button type="button" data-tab="structure"><span>🛠️</span>펌프구조</button>
-    <button type="button" data-tab="rule"><span>📘</span>기준</button>
+    <button type="button" data-tab="method"><span>📘</span>시험방법</button>
     <button type="button" data-tab="records"><span>🗂️</span>기록</button>
   </nav>
 
