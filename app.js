@@ -503,7 +503,24 @@ async function exportReport(kind) {
   }
 }
 
+// 안드로이드 앱(Capacitor) 안에서는 WebView가 Web Share·다운로드 링크를 지원하지 않으므로
+// Filesystem/Share 네이티브 플러그인으로 파일을 쓰고 공유한다. 웹(GitHub Pages)에서는 기존 방식 그대로.
+const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const NativeFS = IS_NATIVE ? window.Capacitor.Plugins.Filesystem : null;
+const NativeShare = IS_NATIVE ? window.Capacitor.Plugins.Share : null;
+const SAVE_FOLDER = '펌프의신';
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(',')[1]);
+    fr.onerror = () => reject(fr.error);
+    fr.readAsDataURL(blob);
+  });
+}
+
 function canShareFile(file) {
+  if (IS_NATIVE) return !!NativeShare;
   try { return !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch { return false; }
 }
 
@@ -521,15 +538,38 @@ function closeShareSheet() { $('shareSheet').hidden = true; }
 async function shareExport() {
   if (!lastExport) return;
   try {
-    await navigator.share({ files: [lastExport.file], title: '소화펌프 성능시험 결과서' });
+    if (IS_NATIVE) {
+      const { uri } = await NativeFS.writeFile({
+        path: lastExport.file.name, data: await blobToBase64(lastExport.file), directory: 'CACHE',
+      });
+      await NativeShare.share({ title: '소화펌프 성능시험 결과서', files: [uri], dialogTitle: '공유하기' });
+    } else {
+      await navigator.share({ files: [lastExport.file], title: '소화펌프 성능시험 결과서' });
+    }
     closeShareSheet();
   } catch (e) {
-    if (e.name !== 'AbortError') { console.error(e); toast('공유하지 못했습니다. "기기에 저장"을 이용하세요'); }
+    const msg = String(e && (e.message || e.name) || '');
+    if (e.name === 'AbortError' || /cancel/i.test(msg)) return;
+    console.error(e);
+    toast('공유하지 못했습니다. "기기에 저장"을 이용하세요');
   }
 }
 
-function downloadExport() {
+async function downloadExport() {
   if (!lastExport) return;
+  if (IS_NATIVE) {
+    try {
+      await NativeFS.writeFile({
+        path: `${SAVE_FOLDER}/${lastExport.file.name}`, data: await blobToBase64(lastExport.file),
+        directory: 'DOCUMENTS', recursive: true,
+      });
+      toast(`내 파일 > Documents > ${SAVE_FOLDER} 폴더에 저장했습니다`);
+    } catch (e) {
+      console.error(e);
+      toast('저장하지 못했습니다. "공유하기"로 다른 앱에 보내 주세요');
+    }
+    return;
+  }
   const a = document.createElement('a');
   a.href = lastExport.url;
   a.download = lastExport.file.name;
@@ -537,6 +577,17 @@ function downloadExport() {
   a.click();
   a.remove();
   toast('기기에 저장했습니다');
+}
+
+// 안드로이드 뒤로가기: 열린 창 닫기 → 시험 탭으로 → 앱 종료
+function setupBackButton() {
+  const App = IS_NATIVE && window.Capacitor.Plugins.App;
+  if (!App) return;
+  App.addListener('backButton', () => {
+    if (!$('shareSheet').hidden) closeShareSheet();
+    else if ($('tab-test').hidden) showTab('test');
+    else App.exitApp();
+  });
 }
 
 function startNewTest() {
@@ -548,6 +599,7 @@ function startNewTest() {
 
 // ===== 초기화 =====
 function init() {
+  setupBackButton();
   $('appVer').textContent = typeof APP_VERSION === 'string' ? APP_VERSION : '';
   $('structureSvg').innerHTML = STRUCTURE_SVG;
 

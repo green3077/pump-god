@@ -1,0 +1,17 @@
+{
+  "name": "pump-god",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/share": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "html2canvas": "1.4.1",
+    "jspdf": "2.5.1"
+  }
+}

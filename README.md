@@ -9,3 +9,10 @@
 로컬 실행: `node serve.js` → http://localhost:8080
 
 배포: `sh deploy.sh "변경 내용"` → version.js에 배포 시각(YYYY-MM-DD HH:MM)을 기록하고 커밋·푸시 (앱 상단에 표시됨)
+
+## 안드로이드 APK (Capacitor)
+- 최초 1회: `npm install`, `android/local.properties`에 `sdk.dir=C:\Users\<사용자>\AppData\Local\Android\Sdk` 작성(gitignore 대상)
+- 웹 소스 수정 후: `sh build-android-www.sh` (www/ 복사 + `cap sync android`)
+- 빌드: `cd android && ./gradlew assembleRelease` → `android/app/build/outputs/apk/release/app-release.apk`
+- 서명: 저장소에 커밋된 `android/app/debug.keystore` (어느 PC에서 빌드해도 덮어설치 가능)
+- 버전: `android/app/build.gradle`의 versionCode/versionName
